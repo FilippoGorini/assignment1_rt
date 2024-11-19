@@ -1,6 +1,4 @@
 // TO DO:   -Check why we don't exit the node once ros is closed
-//          -Solve issue with trail
-//          -Using ROS_INFO instead of cout?
 
 #include "ros/ros.h"
 #include "turtlesim/Spawn.h"                    // Include the Spawn service
@@ -61,8 +59,8 @@ int main(int argc, char **argv)
     spawn_client.call(spawn_srv);
 
     // Add publishers on the corresponding cmd_vel topics, using a twist message structure
-    ros::Publisher pub1_vel = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
-    ros::Publisher pub2_vel = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
+    ros::Publisher pub_vel1 = nh.advertise<geometry_msgs::Twist>("/turtle1/cmd_vel", 10);
+    ros::Publisher pub_vel2 = nh.advertise<geometry_msgs::Twist>("/turtle2/cmd_vel", 10);
 
     // Create velocity messages variables for both turtles
     geometry_msgs::Twist vel1;
@@ -86,7 +84,7 @@ int main(int argc, char **argv)
             std::cin >> vel1.angular.z;
             if (inputInvalid())             // if the input is invalid, do not publish the command and restart the loop
                 continue;
-            pub1_vel.publish(vel1);
+            pub_vel1.publish(vel1);
         }
 
         if (turtle_choice=="2")
@@ -99,7 +97,7 @@ int main(int argc, char **argv)
             std::cin >> vel2.angular.z;
             if (inputInvalid())
                 continue;
-            pub2_vel.publish(vel2);
+            pub_vel2.publish(vel2);
         }
         
         if (turtle_choice!="1" && turtle_choice!="2")
