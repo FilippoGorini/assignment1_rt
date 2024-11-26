@@ -1,5 +1,3 @@
-// TO DO:   -Check why we don't exit the node once ros is closed
-
 #include "ros/ros.h"
 #include "turtlesim/Spawn.h"                    // Include the Spawn service
 #include "turtlesim/TeleportAbsolute.h"         // Include the teleport absolute service to change turtle1 position

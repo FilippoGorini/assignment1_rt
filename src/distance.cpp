@@ -11,8 +11,8 @@ const float MARGIN_MAX = 10.0;
 
 bool is_pose1_updated = false;
 bool is_pose2_updated = false;
-bool distance_flag = false;                 // True while the distance between turtles is less than the threshold
-int last_turtle_moved = 0;                  // Stores the id of the last turtle that received a cmd_vel message
+bool is_stepping_back = false;              
+int last_turtle_moved = 0;                      // Stores the id of the last turtle that received a cmd_vel message
 
 turtlesim::Pose pose1, pose2;                  
 geometry_msgs::Twist last_cmd_vel1, last_cmd_vel2;
@@ -31,27 +31,37 @@ void stopTurtle(int turtle_select)
 }
 
 // This function publishes a cmd_vel message on the cmd_vel topic of the turtle selected by turtle_select, opposite to the last one ...
-// ... that the turtle received
+// ... that the turtle received.
 void stepBackTurtle(int turtle_select)
 {
-    geometry_msgs::Twist rev_vel;
+    // During the first call of the function, is_steeping_back is false, so we set rev_vel to the ...
+    // ... opposite of the last cmd_vel message. Once this is done, is_stepping_back is set to true.
+    static geometry_msgs::Twist rev_vel; 
+    
+    if (!is_stepping_back)
+    {
+        if (turtle_select == 1)
+        {
+            rev_vel.linear.x = -last_cmd_vel1.linear.x;
+            rev_vel.linear.y = -last_cmd_vel1.linear.y;
+            rev_vel.angular.z = -last_cmd_vel1.angular.z;
+        }
+        if (turtle_select == 2)
+        {
+            rev_vel.linear.x = -last_cmd_vel2.linear.x;
+            rev_vel.linear.y = -last_cmd_vel2.linear.y;
+            rev_vel.angular.z = -last_cmd_vel2.angular.z;
+        }
+        is_stepping_back = true;
+    }
 
+    // Publish the velocity commands to the correct topic
     if (turtle_select == 1)
-    {
-        rev_vel.linear.x = -last_cmd_vel1.linear.x;
-        rev_vel.linear.y = -last_cmd_vel1.linear.y;
-        rev_vel.angular.z = -last_cmd_vel1.angular.z;
         pub_vel1.publish(rev_vel);
-    }
-
     if (turtle_select == 2)
-    {
-        rev_vel.linear.x = -last_cmd_vel2.linear.x;
-        rev_vel.linear.y = -last_cmd_vel2.linear.y;
-        rev_vel.angular.z = -last_cmd_vel2.angular.z;
-        pub_vel2.publish(rev_vel);
-    }
+        pub_vel2.publish(rev_vel);       
 }
+
 
 // This function simply publishes the distance computed to the corresponding topic created in the main function
 void pubDistance(float distance)
@@ -74,19 +84,14 @@ void checkDistance()
 
     if (distance <= DISTANCE_THRESHOLD)
     {
-        ROS_WARN("The two turtles are too close to eachother!");
-        stepBackTurtle(last_turtle_moved); 
-        distance_flag = true;
+        ROS_WARN("The two turtles are too close to each other!");
+        stepBackTurtle(last_turtle_moved);
     }
-
-    if(distance > DISTANCE_THRESHOLD && distance_flag)
+    if (distance > DISTANCE_THRESHOLD && is_stepping_back)                              // Stop stepping back once distance is safe
     {
         stopTurtle(last_turtle_moved);
-        distance_flag = false;
+        is_stepping_back = false;                           // Reset the stepping-back state
     }
-
-    is_pose1_updated = false;
-    is_pose2_updated = false;
 }
 
 // This function checks both turtles' poses to see if they're out of bounds and, if yes, the turtle is stopped and teleported back to within the ...
@@ -97,23 +102,23 @@ void checkMargins()
     if (pose1.x < MARGIN_MIN || pose1.x > MARGIN_MAX || pose1.y < MARGIN_MIN || pose1.y > MARGIN_MAX)
     {
         stopTurtle(last_turtle_moved);
-        ROS_WARN("Turtle1 is out of bounds!");
         turtlesim::TeleportAbsolute teleport1_srv;
         teleport1_srv.request.x = std::max(MARGIN_MIN, std::min(MARGIN_MAX, pose1.x));
         teleport1_srv.request.y = std::max(MARGIN_MIN, std::min(MARGIN_MAX, pose1.y));
         teleport1_srv.request.theta = pose1.theta;
         teleport_client1.call(teleport1_srv);
+        ROS_WARN("Turtle1 is out of bounds!");
     }
 
     if (pose2.x < MARGIN_MIN || pose2.x > MARGIN_MAX || pose2.y < MARGIN_MIN || pose2.y > MARGIN_MAX)
     {
         stopTurtle(last_turtle_moved);
-        ROS_WARN("Turtle2 is out of bounds!");
         turtlesim::TeleportAbsolute teleport2_srv;
         teleport2_srv.request.x = std::max(MARGIN_MIN, std::min(MARGIN_MAX, pose2.x));
         teleport2_srv.request.y = std::max(MARGIN_MIN, std::min(MARGIN_MAX, pose2.y));
         teleport2_srv.request.theta = pose2.theta; 
         teleport_client2.call(teleport2_srv);
+        ROS_WARN("Turtle2 is out of bounds!");
     }
 }
 
@@ -127,6 +132,8 @@ void updateTurtle1(const turtlesim::Pose::ConstPtr& msg)
     {   
         checkDistance();
         checkMargins();
+        is_pose1_updated = false;
+        is_pose2_updated = false;
     }
 }
 
@@ -138,6 +145,8 @@ void updateTurtle2(const turtlesim::Pose::ConstPtr& msg)
     {
         checkDistance();
         checkMargins();
+        is_pose1_updated = false;
+        is_pose2_updated = false;
     }
 }
 
